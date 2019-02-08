@@ -1,0 +1,210 @@
+\documentclass[12pt,a4paper,notitlepage]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[portuguese]{babel}
+\usepackage{indentfirst}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{enumerate}
+\usepackage{hyperref}
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\lstset { %
+    language=C++,
+    backgroundcolor=\color{black!5}, % set backgroundcolor
+    basicstyle=\footnotesize,% basic font setting
+}
+
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd{\chapter}{\if@openright\cleardoublepage\else\clearpage\fi}{}{}{}
+\patchcmd{\maketitle}{\if@openright\cleardoublepage\else\clearpage\fi}{}{}{}
+\makeatother
+
+\makeatletter
+\def\@maketitle{%
+  \newpage
+  \vspace*{-\topskip}
+  \begingroup\centering
+  \let \footnote \thanks
+  \hrule height \z@
+    {\LARGE \@title \par}
+    \vskip 1.5em 
+    {\large
+      \lineskip .5em 
+      \begin{tabular}[t]{c}
+        \@author
+      \end{tabular}\par}
+    \vskip 1em 
+    {\large \@date}
+  \par\endgroup
+  \vskip 1.0em
+}
+\makeatother
+
+\usepackage{titlesec}
+\titleformat{\chapter}[display]   
+{\normalfont\huge\bfseries\centering}{\chaptertitlename\ \thechapter}{20pt}{\Huge}   
+\titlespacing*{\chapter}{0pt}{-30pt}{20pt}
+
+\begin{document}
+\pagenumbering{gobble}
+\renewcommand{\chaptername}{}
+\renewcommand{\thechapter}{}
+
+\title{MC970/MO644 - Programação Paralela\\
+		Laboratório 11}
+\author{Professor: Guido Araújo \\
+	Monitor: Rafael Cardoso Fernandes Sousa}
+\date{}
+
+\maketitle
+
+\chapter{Filter Smoothing and 1D Convolution}
+
+Este laboratório é dividido em três etapas:
+\begin{enumerate}  
+\item 1D Convolution using Shared Memory
+\item Filter Smoothing using Shared Memory
+\item Performance Analysis
+\end{enumerate}
+
+\section*{Enunciado}
+
+Para paralelizar os trabalhos, deve-se utilizar CUDA C. Os dois programas devem fazer o uso da shared memory.
+
+\subsection*{Convolution 1D}
+
+Para paralelizar o programa 1D Convolution, deve-se seguir o Design 1 do slide Convolution. Conforme:
+\begin{itemize}
+\item Design 1: The size of each thread block matches the size of an output tile
+\begin{itemize}
+\item All threads participate in calculating output elements
+\item Some threads need to load more than one input element into the shared memory
+\end{itemize}
+\end{itemize}
+
+
+A computação que deve ser movida para a GPU é a seguinte:
+
+\begin{lstlisting}[basicstyle=\tiny]
+void Convolution1D(int *N, int *P, int *M, int n) {
+  int i, j;
+
+  for(i=0; i < n; i++){
+      int Pvalue = 0;
+      int N_start_point = i - ((Mask_Width-1)/2);
+      for(j = 0; j < Mask_Width; j++){
+          if(N_start_point+j >=0 && N_start_point+j < n){
+              Pvalue += N[N_start_point+j]*M[j];
+          }
+      }
+      P[i] = Pvalue;
+  }
+}
+\end{lstlisting}
+
+As entradas desta estapa estão em formato texto. A primeira linha se refere a quantidade de elementos e, a segunda linha, descreve os elementos. Exemplo:
+\begin{lstlisting}
+5
+12 1 60 11 77
+
+\end{lstlisting}
+
+Observação: Coloquei uma máscara grande para aumentar a quantidade de operações realizadas por output.
+
+\subsection*{Filter Smoothing}
+
+A computação que deve ser movida para a GPU é a seguinte:
+
+\begin{lstlisting}[basicstyle=\tiny]
+
+void Smoothing_CPU_Serial(PPMImage *image, PPMImage *image_copy) {
+  int i, j, y, x;
+  int total_red, total_blue, total_green;
+
+  for (i = 0; i < image->y; i++) {
+      for (j = 0; j < image->x; j++) {
+          total_red = total_blue = total_green = 0;
+          for (y = i - ((MASK_WIDTH-1)/2); y < (i + ((MASK_WIDTH-1)/2)); y++) {
+              for (x = j - ((MASK_WIDTH-1)/2); x < (j + ((MASK_WIDTH-1)/2)); x++) {
+                  if (x >= 0 && y >= 0 && y < image->y && x < image->x) {
+                      total_red += image_copy->data[(y * image->x) + x].red;
+                      total_blue += image_copy->data[(y * image->x) + x].blue;
+                      total_green += image_copy->data[(y * image->x) + x].green;
+                  } //if
+              } //for z
+          } //for y
+          image->data[(i * image->x) + j].red = total_red / (MASK_WIDTH*MASK_WIDTH);
+          image->data[(i * image->x) + j].blue = total_blue / (MASK_WIDTH*MASK_WIDTH);
+          image->data[(i * image->x) + j].green = total_green / (MASK_WIDTH*MASK_WIDTH);
+      }
+  }
+}
+\end{lstlisting}
+
+Mais detalhes: http://erad.dc.ufscar.br/problema.pdf. As entradas desta etapa estão no formato PPM, logo as cores são apenas RGB.
+
+Os inputs consistem em 3 imagens com as seguintes resoluções: 720p, 1080p e 4k, todas no formato PPM.\\
+
+\subsection*{Performance Analysis}
+É necessário preencher, para cada um dos dois programas, 1D Convolution e Filtro Smoothing, uma Tabela no formato da Tabela \ref{my-label}.
+\begin{table}[]
+\centering
+\caption{Speedup Filter Smoothing and 1D Convolution}
+\label{my-label}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|l|l|l|}
+\hline
+Entrada & CPU\_Serial & GPU\_NOSharedMemory & GPU\_SharedMemory & Speedup (CPU/GPUSM) \\ \hline
+Arq1.in &             &                     &                   &                     \\ \hline
+Arq2.in &             &                     &                   &                     \\ \hline
+Arq3.in &             &                     &                   &                     \\ \hline
+\end{tabular}}
+\end{table}
+
+Por fim, para o Filtro Smoothing é necessário preencher a Tabela \ref{my-label2}. O slide Convolution, que está disponível no site de monitoria, mostra como é preenchido esta Tabela para 1DConvolution. MOSTRE COMO CHEGOU NO RESULTADO.
+
+\begin{table}[]
+\centering
+\caption{Only for Filter Smoothing}
+\label{my-label2}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|l|l|l|l|l|}
+\hline
+              & BLOCK\_SIZE=8x8 & BLOCK\_SIZE=14x14 & BLOCK\_SIZE=15x15 & BLOCK\_SIZE=16x16 & BLOCK\_SIZE=32x32 \\ \hline
+MASK\_WIDTH=5 &                &                &                &                 &                 \\ \hline
+MASK\_WIDTH=7 &                &                &                &                 &                 \\ \hline
+MASK\_WIDTH=9 &                &                &                &                 &                 \\ \hline
+MASK\_WIDTH=11 &                &                &                &                 &                 \\ \hline
+MASK\_WIDTH=13 &                &                &                &                 &                 \\ \hline
+\end{tabular}}
+\end{table}
+
+Observação: Os resultados devem ser incluídos em formato de comentário nos seus respectivos arquivos fontes.
+
+\section*{Testes e Resultado}
+
+Para compilar o seu programa, basta entrar no servidor mo644 ou parsusy, a partir do serviço ssh do IC, e digitar o comando \textbf{/usr/local/cuda-7.5/bin/nvcc programa.cu -o programa}. Para executar o 1D Convolution, basta digitar \textbf{./p < arq\$.in > arq\$.out}. Para executar o Filter Smoothing, basta digitar  \textbf{./p arq\$.ppm > out\$.ppm}.
+
+Não haverá comparação de Speedup na submissão dos Trabalhos. O Parsusy irá comparar apenas o output.
+
+\section*{Submissões}
+
+O número máximo de submissões é de 10. Antes de submeter seu programa, faça testes usando o comando diff do Linux, exemplo: diff gpu\_out.ppm cpu\_out.ppm.
+
+\section*{Compilação e Execução}
+O ParSuSy irá compilar o seu programa através do compilador nvcc.  
+
+\chapter{Links Úteis}
+
+\url{https://www.vivaolinux.com.br/dica/Utilizando-o-comando-scp}.
+
+\url{https://sites.google.com/site/mo644mc970/slides}.
+
+\end{document}

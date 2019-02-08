@@ -1,0 +1,62 @@
+\documentclass[a4paper,12pt]{scrartcl}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[portuguese]{babel}
+
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{lmodern}
+\usepackage{enumerate}
+
+\usepackage{xcolor}
+
+\lstset{
+	language=C,
+	basicstyle=\ttfamily,
+	commentstyle=\color{gray}
+}
+
+\lstdefinestyle{BashInputStyle}{
+	language=bash,
+	basicstyle=\small\sffamily,
+	%numbers=left,
+	%numberstyle=\tiny,
+	numbersep=3pt,
+	frame=tb,
+	columns=fullflexible,
+	backgroundcolor=\color{black!5},
+	linewidth=0.9\linewidth,
+	xleftmargin=0.1\linewidth
+}
+
+
+\begin{document}
+
+\title{MC970/MO644 -- Programação Paralela}
+\subtitle{Laboratório 13 -- Multiplicação de Matrizes Distribuida}
+\author{Professor: Guido Araújo \\
+			Monitor: Hervé Yviquel}
+\date{}
+
+\maketitle
+
+
+\section{Enunciado}
+
+Neste laboratório, o objetivo é paralelizar multiplicação de matrizes (C=A.B) na nuvem usando Apache Spark.
+
+\begin{itemize}
+	\item A primeira tarefa é implementar a multiplicação de matrizes da maneira que quiserem mas usando as fonções de paralelização de Spark. A implementação esta totalmente livre: pode ser em Scala ou Python usando um Notebook Jupyter ou não.
+	\item A segunda tarefa é criar um cluster Spark no Microsoft Azure e testar a execução na nuvem. Depois da execução, devem analisar a paralelização usando a interface gráfica de profiling do Spark e tentar optimizar ao máximo o tempo de execução. Também, devem modificar o tamanho das matrizes para observar o efeito na execução. A implementação deve ser testada com matrizes de float geradas aleatoriamente e de varias tamanhos para mostrar a escalabilidade da implementação (por exemplo 2000, 8000, e 16000). 
+\end{itemize}
+
+Caso tenha alguma dúvida, use o Google Groups - para este trabalho está liberado discutir a solução direta do problema. 
+
+\section{Submissões}
+
+A submissão deve ser \textbf{um arquivo} (em zip) contendo o \textbf{código} (com os arquivos necessários para compilar e testar) e um \textbf{relatório} (em pdf). O relatório deve descrever a implementação, apresentar e analisar os resultados das experimentações na nuvem, e descrever as otimizações que foram aplicadas. Alem disso, o relatório deve conter uma captura de ecrã da interface gráfica de profilamento do Spark mostrando a execução nos núcleos do cluster em paralela.
+
+\end{document}
